@@ -343,7 +343,7 @@ pub fn download_bundles(
             parts[0]
         };
         // If there is a third item im the split
-        if parts.len() >= 2 {
+        if parts.len() > 2 {
             let size_bytes = Byte::parse_str(parts[2], true);
             match size_bytes {
                 Ok(size_bytes) => {
