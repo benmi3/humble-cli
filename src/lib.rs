@@ -19,6 +19,7 @@ pub mod prelude {
 }
 
 use anyhow::{anyhow, Context};
+use byte_unit::Byte;
 use config::{get_config, set_config, Config};
 use humble_api::{ApiError, HumbleApi};
 use key_match::KeyMatch;
@@ -340,6 +341,19 @@ pub fn download_bundles(
             parts[1]
         } else {
             parts[0]
+        };
+        // If there is a third item im the split
+        if parts.len() >= 2 {
+            let size_bytes = Byte::parse_str(parts[2], true);
+            match size_bytes {
+                Ok(size_bytes) => {
+                    if size_bytes.as_u128() == 0 {
+                        println!("Skipping ({bundle_name}) as the size is 0 or less");
+                        continue;
+                    };
+                }
+                _ => println!("Failed at parsing ({:?}) into a byte size", parts[2]),
+            }
         };
 
         if let Err(download_err) =
