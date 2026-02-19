@@ -1,22 +1,33 @@
-[![Build status](https://github.com/smbl64/humble-cli/actions/workflows/tests.yml/badge.svg)](https://github.com/smbl64/humble-cli/actions/workflows/tests.yml)
-![GitHub](https://img.shields.io/github/license/smbl64/humble-cli)
-![GitHub release (with filter)](https://img.shields.io/github/v/release/smbl64/humble-cli)
+Currently undergoing heavy Maintanence!
+Please check the [Disclaimer](#disclaimer)
 
 # humble-cli  
+
+<!--toc:start-->
+- [humble-cli](#humble-cli)
+  - [✨ Features](#features)
+  - [🔧 Install](#🔧-install)
+  - [🚀 Usage](#🚀-usage)
+  - [Disclaimer](#disclaimer)
+<!--toc:end-->
+
 The missing command-line interface for downloading your Humble Bundle purchases!
 
-## ✨ Features 
+## ✨ Features
+
 - List all your Humble Bundle purchases
 - List entries in a bundle, their file formats, and file size
 - Download items in a bundle separately, and optionally filter them with
-    - file format (e.g., EPUB, PDF)
-    - file size 
+  - file format (e.g., EPUB, PDF)
+  - file size
 - Easily see which of your bundles have unclaimed keys
 - Check your Humble Bundle Choices in current and previous months
 - Search through all your purchases for a specific product
 
 ## 🔧 Install
-**Option 1:** Download the binaries in the [Releases][releases] page. Windows, macOS and Linux are supported.
+
+**Option 1:** Download the binaries in the [Releases][releases] page.
+Windows, macOS and Linux are supported.
 
 **Option 2:** Install it via `cargo`:
 
@@ -24,9 +35,11 @@ The missing command-line interface for downloading your Humble Bundle purchases!
 cargo install humble-cli
 ```
 
-## 🚀 Usage 
+## 🚀 Usage
 
-To start, go to the [Humble Bundle website][hb-site] and log in. Then find the cookie value for `_simpleauth_sess`. This is required to interact with Humble Bundle API. 
+To start, go to the [Humble Bundle website][hb-site] and log in.
+Then find the cookie value for `_simpleauth_sess`.
+This is required to interact with Humble Bundle API.
 
 See this guide on how to find the cookie value for your browser: [Chrome][guide-chrome], [Firefox][guide-firefox], [Safari][guide-safari].
 
@@ -59,9 +72,13 @@ Note: `humble-cli -h` prints a short and concise overview while `humble-cli --he
 details.
 ```
 
-[releases]: https://github.com/smbl64/humble-cli/releases
 [hb-site]: https://www.humblebundle.com/
-[guide-chrome]: https://github.com/smbl64/humble-cli/blob/master/docs/session-key-chrome.md
-[guide-firefox]: https://github.com/smbl64/humble-cli/blob/master/docs/session-key-firefox.md
-[guide-safari]: https://github.com/smbl64/humble-cli/blob/master/docs/session-key-safari.md
 
+## Disclaimer
+
+This repo is a fork of [smbl64/humble-cli](https://github.com/smbl64/humble-cli)
+from back when it used to be in Rust. (It is not been rewritten in Go)
+So all the credit of the initial base goes them.
+My Goal is to reformat the code, and upgrade it as I go.
+(Upgrading to clap v4 etc)
+The code *should* work as is.
