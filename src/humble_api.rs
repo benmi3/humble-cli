@@ -1,21 +1,28 @@
 use crate::models::*;
+use derive_more::From;
 use futures_util::future;
 use reqwest::blocking::Client;
 use scraper::Selector;
-use thiserror::Error;
 
-#[derive(Debug, Error)]
+use crate::error::{Error, Result};
+
+#[derive(Debug, From)]
 pub enum ApiError {
-    #[error(transparent)]
     NetworkError(#[from] reqwest::Error),
-
-    // #[error("cannot parse the response")]
-    #[error(transparent)]
     DeserializeError(#[from] serde_json::Error),
-
-    #[error("cannot find any data")]
     BundleNotFound,
+    ApiStatus(String),
 }
+
+// region:    --- Error Boilerplate
+impl core::fmt::Display for ApiError {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
+        write!(fmt, "{self:?}")
+    }
+}
+
+impl std::error::Error for ApiError {}
+// endregion: --- Error Boilerplate
 
 pub struct HumbleApi {
     auth_key: String,
@@ -28,7 +35,7 @@ impl HumbleApi {
         }
     }
 
-    pub fn list_bundle_keys(&self) -> Result<Vec<String>, ApiError> {
+    pub fn list_bundle_keys(&self) -> Result<Vec<String>> {
         let client = Client::new();
 
         let res = client
@@ -50,7 +57,7 @@ impl HumbleApi {
         Ok(game_keys)
     }
 
-    pub fn list_bundles(&self) -> Result<Vec<Bundle>, ApiError> {
+    pub fn list_bundles(&self) -> Result<Vec<Bundle>> {
         const CHUNK_SIZE: usize = 10;
 
         let client = reqwest::Client::new();
@@ -67,7 +74,7 @@ impl HumbleApi {
 
         // Collect the Vec<Result<_,_>> into Result<Vec<_>, _>. This will automatically stop when an error is seen.
         // See https://doc.rust-lang.org/rust-by-example/error/iter_result.html#fail-the-entire-operation-with-collect
-        let result: Result<Vec<Vec<Bundle>>, _> = runtime
+        let result: Result<Vec<Vec<Bundle>>> = runtime
             .block_on(future::join_all(futures))
             .into_iter()
             .collect();
@@ -81,7 +88,7 @@ impl HumbleApi {
         &self,
         client: &reqwest::Client,
         keys: &[String],
-    ) -> Result<Vec<Bundle>, ApiError> {
+    ) -> Result<Vec<Bundle>> {
         let mut query_params: Vec<_> = keys.iter().map(|key| ("gamekeys", key.as_str())).collect();
 
         query_params.insert(0, ("all_tpkds", "true"));
@@ -102,7 +109,7 @@ impl HumbleApi {
         Ok(product_map.into_values().collect())
     }
 
-    pub fn read_bundle(&self, product_key: &str) -> Result<Bundle, ApiError> {
+    pub fn read_bundle(&self, product_key: &str) -> Result<Bundle> {
         let url = format!(
             "https://www.humblebundle.com/api/v1/order/{}?all_tpkds=true",
             product_key
@@ -126,7 +133,7 @@ impl HumbleApi {
     ///
     /// `when` should be in the `month-year` format. For example: `"january-2023"`.
     /// Use `"home"` to get the current active data.
-    pub fn read_bundle_choices(&self, when: &str) -> Result<HumbleChoice, ApiError> {
+    pub fn read_bundle_choices(&self, when: &str) -> Result<HumbleChoice> {
         let url = format!("https://www.humblebundle.com/membership/{}", when);
 
         let client = Client::new();
@@ -143,7 +150,7 @@ impl HumbleApi {
         self.parse_bundle_choices(&html)
     }
 
-    fn parse_bundle_choices(&self, html: &str) -> Result<HumbleChoice, ApiError> {
+    fn parse_bundle_choices(&self, html: &str) -> Result<HumbleChoice> {
         let document = scraper::html::Html::parse_document(html);
         // One of these two CSS IDs will match. First one is for the active
         // month, while the second is for previous months.
@@ -154,10 +161,10 @@ impl HumbleApi {
 
         let scripts: Vec<_> = document.select(&sel).collect();
         if scripts.len() != 1 {
-            return Err(ApiError::BundleNotFound);
+            return Err(Error::HumbleApi(ApiError::BundleNotFound));
         }
 
-        let script = scripts.get(0).unwrap();
+        let script = scripts.first().unwrap();
         let txt = script.inner_html();
         let obj: HumbleChoice = serde_json::from_str(&txt)?;
         Ok(obj)

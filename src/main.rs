@@ -1,9 +1,7 @@
-use std::io;
-
-use anyhow::Context;
-use clap::{builder::ValueParser, value_parser, Arg, Command};
+use clap::{builder::ValueParser, Arg, ArgAction, Command};
 use clap_complete::Shell;
 use humble_cli::{download_bundles, prelude::*};
+use std::io;
 
 fn main() {
     let crate_name = env!("CARGO_PKG_NAME");
@@ -13,23 +11,21 @@ fn main() {
     }
 }
 
-fn parse_choices_period(input: &str) -> Result<ChoicePeriod, anyhow::Error> {
-    ChoicePeriod::try_from(input).map_err(|e| anyhow::anyhow!(e))
+fn parse_choices_period(input: &str) -> Result<ChoicePeriod> {
+    match ChoicePeriod::try_from(input) {
+        Ok(res) => Ok(res),
+        Err(res) => Err(Error::ChoicePeriod(res)),
+    }
 }
 
-fn parse_match_mode(input: &str) -> Result<MatchMode, anyhow::Error> {
-    MatchMode::try_from(input).map_err(|e| anyhow::anyhow!(e))
-}
-
-fn run() -> Result<(), anyhow::Error> {
+fn run() -> Result<()> {
     let list_subcommand = Command::new("list")
         .about("List all your purchased bundles")
         .visible_alias("ls")
         .arg(
         Arg::new("field")
             .long("field")
-            .takes_value(true)
-            .multiple_occurrences(true)
+            .num_args(1..)
             .help("Print bundle with the specified fields only")
             .long_help(
                 "Print bundle with the specified fields only. This can be used to chain commands together for automation. \
@@ -41,10 +37,9 @@ fn run() -> Result<(), anyhow::Error> {
         Arg::new("claimed")
             .long("claimed")
             .value_name("value")
-            .takes_value(true)
-            .possible_values(["all", "yes", "no"])
+            .num_args(1)
             .default_value("all")
-            .value_parser(value_parser!(String))
+            .value_parser(["all", "yes", "no"])
             .help("Show claimed or unclaimed bundles only")
             .long_help(
                 "Show claimed or unclaimed bundles only. \
@@ -57,10 +52,9 @@ fn run() -> Result<(), anyhow::Error> {
         .arg(
             Arg::new("SHELL")
                 .help("Shell type to generate completions for")
-                .possible_values(["bash", "elvish", "fish", "powershell", "zsh"])
-                .takes_value(true)
+                .num_args(1)
                 .required(true)
-                .value_parser(value_parser!(Shell)),
+                .value_parser(["bash", "elvish", "fish", "powershell", "zsh"]),
         );
 
     let list_choices_subcommand = Command::new("list-choices")
@@ -81,7 +75,7 @@ fn run() -> Result<(), anyhow::Error> {
         .arg(
             Arg::new("SESSION-KEY")
                 .required(true)
-                .takes_value(true)
+                .num_args(1)
                 .help("Session key that's copied from your web browser"),
         );
 
@@ -91,7 +85,7 @@ fn run() -> Result<(), anyhow::Error> {
         .arg(
             Arg::new("BUNDLE-KEY")
                 .required(true)
-                .takes_value(true)
+                .num_args(1)
                 .help("The key for the bundle which must be shown")
                 .long_help(
                     "The key for the bundle which must be shown. It can be partially entered.",
@@ -104,17 +98,16 @@ fn run() -> Result<(), anyhow::Error> {
             Arg::new("KEYWORDS")
                 .required(true)
                 .action(clap::ArgAction::Append)
-                .multiple_values(true)
+                .num_args(1..)
                 .help("Search keywords"),
         )
         .arg(
             Arg::new("mode")
                 .long("mode")
                 .value_name("mode")
-                .takes_value(true)
-                .possible_values(["all", "any"])
+                .num_args(1)
                 .default_value("any")
-                .value_parser(ValueParser::new(parse_match_mode))
+                .value_parser(["all", "any"])
                 .help("Whether all or any of the keywords should match the name"),
         );
     let download_subcommand = Command::new("download")
@@ -132,7 +125,7 @@ fn run() -> Result<(), anyhow::Error> {
             Arg::new("item-numbers")
             .short('i')
             .long("item-numbers")
-            .takes_value(true)
+            .num_args(1)
             .help("Download only specified items")
             .long_help(
                 "Download only specified items. This is a comman-separated list of item numbers to download. \
@@ -149,8 +142,8 @@ fn run() -> Result<(), anyhow::Error> {
             Arg::new("format")
                 .short('f')
                 .long("format")
-                .takes_value(true)
-                .multiple_occurrences(true)
+                .num_args(1..)
+                .action(ArgAction::Append)
                 .help("Filter downloaded items by their format")
                 .long_help(
                     "Filter downloaded files by their format. Formats are case-insensitive and \
@@ -162,7 +155,8 @@ fn run() -> Result<(), anyhow::Error> {
             Arg::new("torrents")
                 .short('t')
                 .long("torrents")
-                .takes_value(false)
+                .num_args(0)
+                .action(ArgAction::SetTrue)
                 .help("Download only .torrent files for items")
                 .long_help(
                     "Download only the BitTorrent files for the given items. This will prevent \
@@ -174,7 +168,7 @@ fn run() -> Result<(), anyhow::Error> {
             Arg::new("max-size")
                 .short('s')
                 .long("max-size")
-                .takes_value(true)
+                .num_args(1)
                 .help("Filter downloaded items by their maximum size")
                 .long_help(
                     "Filter downloaded items by their maximum size. This will skip any sub-item in a bundle \
@@ -189,7 +183,8 @@ fn run() -> Result<(), anyhow::Error> {
             Arg::new("cur-dir")
                 .short('c')
                 .long("cur-dir")
-                .takes_value(false)
+                .num_args(0)
+                .action(ArgAction::SetTrue)
                 .help("Download into current dir")
                 .long_help(
                     "One Directoy for each entry is created, \
@@ -212,8 +207,8 @@ fn run() -> Result<(), anyhow::Error> {
             Arg::new("format")
                 .short('f')
                 .long("format")
-                .takes_value(true)
-                .multiple_occurrences(true)
+                .num_args(1..)
+                .action(ArgAction::Append)
                 .help("Filter downloaded items by their format")
                 .long_help(
                     "Filter downloaded files by their format. Formats are case-insensitive and \
@@ -225,7 +220,8 @@ fn run() -> Result<(), anyhow::Error> {
             Arg::new("torrents")
                 .short('t')
                 .long("torrents")
-                .takes_value(false)
+                .num_args(0)
+                .action(ArgAction::SetTrue)
                 .help("Download only .torrent files for items")
                 .long_help(
                     "Download only the BitTorrent files for the given items. This will prevent \
@@ -237,7 +233,7 @@ fn run() -> Result<(), anyhow::Error> {
             Arg::new("max-size")
                 .short('s')
                 .long("max-size")
-                .takes_value(true)
+                .num_args(1)
                 .help("Filter downloaded items by their maximum size")
                 .long_help(
                     "Filter downloaded items by their maximum size. This will skip any sub-item in a bundle \
@@ -252,7 +248,8 @@ fn run() -> Result<(), anyhow::Error> {
             Arg::new("cur-dir")
                 .short('c')
                 .long("cur-dir")
-                .takes_value(false)
+                .num_args(0)
+                .action(ArgAction::SetTrue)
                 .help("Download into current dir")
                 .long_help(
                     "One Directoy for each entry is created, \
@@ -291,11 +288,11 @@ fn run() -> Result<(), anyhow::Error> {
             Ok(())
         }
         Some(("auth", sub_matches)) => {
-            let session_key = sub_matches.value_of("SESSION-KEY").unwrap();
+            let session_key = sub_matches.get_one::<String>("SESSION-KEY").unwrap();
             auth(session_key)
         }
         Some(("details", sub_matches)) => {
-            let bundle_key = sub_matches.value_of("BUNDLE-KEY").unwrap();
+            let bundle_key = sub_matches.get_one::<String>("BUNDLE-KEY").unwrap();
             show_bundle_details(bundle_key)
         }
         Some(("search", sub_matches)) => {
@@ -308,21 +305,20 @@ fn run() -> Result<(), anyhow::Error> {
             search(&keywords, *match_mode)
         }
         Some(("download", sub_matches)) => {
-            let bundle_key = sub_matches.value_of("BUNDLE-KEY").unwrap();
-            let formats = if let Some(values) = sub_matches.values_of("format") {
+            let bundle_key = sub_matches.get_one::<String>("BUNDLE-KEY").unwrap();
+            let formats = if let Some(values) = sub_matches.get_many::<String>("format") {
                 values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
             } else {
                 vec![]
             };
-            let max_size: u64 = if let Some(byte_str) = sub_matches.value_of("max-size") {
-                byte_string_to_number(byte_str)
-                    .context(format!("failed to parse the specified size: {}", byte_str))?
+            let max_size: u64 = if let Some(byte_str) = sub_matches.get_one::<&str>("max-size") {
+                byte_string_to_number(byte_str)?
             } else {
                 0
             };
-            let item_numbers = sub_matches.value_of("item-numbers");
-            let torrents_only = sub_matches.is_present("torrents");
-            let cur_dir = sub_matches.is_present("cur-dir");
+            let item_numbers = sub_matches.get_one::<String>("item-numbers");
+            let torrents_only = sub_matches.contains_id("torrents");
+            let cur_dir = sub_matches.contains_id("cur-dir");
             download_bundle(
                 bundle_key,
                 &formats,
@@ -333,7 +329,7 @@ fn run() -> Result<(), anyhow::Error> {
             )
         }
         Some(("list", sub_matches)) => {
-            let fields = if let Some(values) = sub_matches.values_of("field") {
+            let fields = if let Some(values) = sub_matches.get_many::<String>("field") {
                 values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
             } else {
                 vec![]
@@ -349,20 +345,19 @@ fn run() -> Result<(), anyhow::Error> {
             list_humble_choices(period)
         }
         Some(("bulk-download", sub_matches)) => {
-            let bundle_file = sub_matches.value_of("INPUT-FILE").unwrap();
-            let formats = if let Some(values) = sub_matches.values_of("format") {
+            let bundle_file = sub_matches.get_one::<String>("INPUT-FILE").unwrap();
+            let formats = if let Some(values) = sub_matches.get_many::<String>("format") {
                 values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
             } else {
                 vec![]
             };
-            let max_size: u64 = if let Some(byte_str) = sub_matches.value_of("max-size") {
-                byte_string_to_number(byte_str)
-                    .context(format!("failed to parse the specified size: {}", byte_str))?
+            let max_size: u64 = if let Some(byte_str) = sub_matches.get_one::<String>("max-size") {
+                byte_string_to_number(byte_str)?
             } else {
                 0
             };
-            let torrents_only = sub_matches.is_present("torrents");
-            let cur_dir = sub_matches.is_present("cur-dir");
+            let torrents_only = sub_matches.contains_id("torrents");
+            let cur_dir = sub_matches.contains_id("cur-dir");
             download_bundles(bundle_file, formats, max_size, torrents_only, cur_dir)
         }
         // This shouldn't happen

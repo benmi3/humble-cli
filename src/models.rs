@@ -11,14 +11,14 @@ pub enum ClaimStatus {
     NotAvailable,
 }
 
-impl ToString for ClaimStatus {
-    fn to_string(&self) -> String {
-        match self {
+impl std::fmt::Display for ClaimStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
             Self::Yes => "Yes",
             Self::No => "No",
             Self::NotAvailable => "-",
-        }
-        .to_owned()
+        };
+        write!(f, "{}", text)
     }
 }
 
@@ -260,12 +260,13 @@ pub enum ChoicePeriod {
     Date { month: String, year: u16 },
 }
 
-impl ToString for ChoicePeriod {
-    fn to_string(&self) -> String {
-        match self {
+impl std::fmt::Display for ChoicePeriod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
             Self::Current => "home".to_owned(),
             Self::Date { month, year } => format!("{}-{}", month, year),
-        }
+        };
+        write!(f, "{}", text)
     }
 }
 
@@ -307,7 +308,7 @@ impl TryFrom<&str> for ChoicePeriod {
             .parse()
             .map_err(|e| format!("invalid year value: {}", e))?;
 
-        if year < 2018 || year > 2030 {
+        if (2018..2030).contains(&year) {
             return Err("years out of 2018-2030 range are not supported".to_owned());
         }
 
