@@ -308,7 +308,7 @@ impl TryFrom<&str> for ChoicePeriod {
             .parse()
             .map_err(|e| format!("invalid year value: {}", e))?;
 
-        if (2018..2030).contains(&year) {
+        if !(2018..2030).contains(&year) {
             return Err("years out of 2018-2030 range are not supported".to_owned());
         }
 

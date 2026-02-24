@@ -283,7 +283,7 @@ fn test_union_invalid_usize_ranges() {
             .map(|v| format!("'{}'", v))
             .collect::<Vec<_>>()
             .join(", ");
-
+        let expected_err_msg = format!("UnionUsizeRanges(\"{}\")", expected_err_msg);
         let output = union_usize_ranges(&input, MAX_VAL);
 
         let assert_msg = format!(

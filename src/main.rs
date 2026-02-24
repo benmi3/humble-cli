@@ -26,6 +26,7 @@ fn run() -> Result<()> {
         Arg::new("field")
             .long("field")
             .num_args(1..)
+            .action(ArgAction::Append)
             .help("Print bundle with the specified fields only")
             .long_help(
                 "Print bundle with the specified fields only. This can be used to chain commands together for automation. \
