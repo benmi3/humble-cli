@@ -1,3 +1,4 @@
+use crate::error::{Error, Result};
 use byte_unit::{Byte, UnitType};
 use std::{collections::HashSet, future::Future};
 
@@ -16,8 +17,8 @@ pub fn humanize_bytes(bytes: u64) -> String {
 
 // Convert a string representing a byte size (e.g. 12MB) to a number.
 // It supports the IEC (KiB MiB ...) and KB MB ... formats.
-pub fn byte_string_to_number(byte_string: &str) -> Option<u64> {
-    Byte::parse_str(byte_string, true).map(|b| b.into()).ok()
+pub fn byte_string_to_number(byte_string: &str) -> Result<u64> {
+    Ok(Byte::parse_str(byte_string, true).map(|b| b.into())?)
 }
 
 pub fn replace_invalid_chars_in_filename(input: &str) -> String {
@@ -121,7 +122,7 @@ pub fn parse_usize_range(value: &str, max_value: usize) -> Option<Vec<usize>> {
     Some((range_left..range_right + 1).collect())
 }
 
-pub fn union_usize_ranges(values: &[&str], max_value: usize) -> Result<Vec<usize>, anyhow::Error> {
+pub fn union_usize_ranges(values: &[&str], max_value: usize) -> Result<Vec<usize>> {
     let mut invalid_values = vec![];
     let mut parsed = HashSet::new();
 
@@ -139,7 +140,7 @@ pub fn union_usize_ranges(values: &[&str], max_value: usize) -> Result<Vec<usize
             .collect::<Vec<_>>()
             .join(", ");
 
-        return Err(anyhow::anyhow!("{}", msg));
+        return Err(Error::UnionUsizeRanges(msg.to_string()));
     }
 
     let mut output = Vec::from_iter(parsed);
@@ -282,7 +283,7 @@ fn test_union_invalid_usize_ranges() {
             .map(|v| format!("'{}'", v))
             .collect::<Vec<_>>()
             .join(", ");
-
+        let expected_err_msg = format!("UnionUsizeRanges(\"{}\")", expected_err_msg);
         let output = union_usize_ranges(&input, MAX_VAL);
 
         let assert_msg = format!(
@@ -291,7 +292,7 @@ fn test_union_invalid_usize_ranges() {
         );
 
         assert!(output.is_err(), "{}", assert_msg);
-        let output_err_msg: String = output.unwrap_err().downcast().unwrap();
+        let output_err_msg: String = output.unwrap_err().to_string();
         assert_eq!(output_err_msg, expected_err_msg, "{}", assert_msg);
     }
 }

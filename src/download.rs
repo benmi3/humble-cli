@@ -1,3 +1,4 @@
+use derive_more::From;
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
@@ -6,15 +7,12 @@ use std::fs::File;
 use std::io::{Seek, Write};
 use std::time::Duration;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, From)]
 pub enum DownloadError {
-    #[error(transparent)]
     Network(#[from] reqwest::Error),
 
-    #[error(transparent)]
     IO(#[from] std::io::Error),
 
-    #[error("{0}")]
     Generic(String),
 }
 
@@ -23,6 +21,16 @@ impl DownloadError {
         DownloadError::Generic(s)
     }
 }
+
+// region:    --- Error Boilerplate
+impl core::fmt::Display for DownloadError {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
+        write!(fmt, "{self:?}")
+    }
+}
+
+impl std::error::Error for DownloadError {}
+// endregion: --- Error Boilerplate
 
 pub async fn download_file(
     client: &Client,

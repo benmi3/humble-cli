@@ -1,5 +1,6 @@
 mod config;
 mod download;
+mod error;
 mod humble_api;
 mod key_match;
 mod models;
@@ -13,12 +14,12 @@ pub mod prelude {
     pub use crate::search;
     pub use crate::show_bundle_details;
 
+    pub use crate::error::{Error, Result};
     pub use crate::humble_api::{ApiError, HumbleApi};
     pub use crate::models::*;
     pub use crate::util::byte_string_to_number;
 }
 
-use anyhow::{anyhow, Context};
 use byte_unit::Byte;
 use config::{get_config, set_config, Config};
 use humble_api::{ApiError, HumbleApi};
@@ -33,29 +34,34 @@ use tabled::settings::Merge;
 use tabled::settings::Modify;
 use tabled::settings::Style;
 
-pub fn auth(session_key: &str) -> Result<(), anyhow::Error> {
+pub fn auth(session_key: &str) -> Result<()> {
     set_config(Config {
         session_key: session_key.to_owned(),
     })
 }
 
-pub fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error> {
+pub fn handle_http_errors<T>(input: Result<T>) -> Result<T> {
     match input {
         Ok(val) => Ok(val),
-        Err(ApiError::NetworkError(e)) if e.is_status() => match e.status().unwrap() {
-            reqwest::StatusCode::UNAUTHORIZED => Err(anyhow!(
-                "Unauthorized request (401). Is the session key correct?"
-            )),
-            reqwest::StatusCode::NOT_FOUND => Err(anyhow!(
-                "Bundle not found (404). Is the bundle key correct?"
-            )),
-            s => Err(anyhow!("failed with status: {}", s)),
-        },
-        Err(e) => Err(anyhow!("failed: {}", e)),
+        Err(Error::HumbleApi(ApiError::NetworkError(e))) if e.is_status() => {
+            match e.status().unwrap() {
+                reqwest::StatusCode::UNAUTHORIZED => Err(Error::HumbleApi(ApiError::ApiStatus(
+                    "Unauthorized request (401). Is the session key correct?".to_string(),
+                ))),
+                reqwest::StatusCode::NOT_FOUND => Err(Error::HumbleApi(ApiError::ApiStatus(
+                    "Bundle not found (404). Is the bundle key correct?".to_string(),
+                ))),
+                s => Err(Error::HumbleApi(ApiError::ApiStatus(format!(
+                    "failed with status: {}",
+                    s
+                )))),
+            }
+        }
+        Err(e) => Err(e),
     }
 }
 
-pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
+pub fn list_humble_choices(period: &ChoicePeriod) -> Result<()> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
@@ -91,8 +97,8 @@ pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
     let table = builder
         .build()
         .with(Style::psql())
-        .with(Modify::new(Columns::single(0)).with(Alignment::right()))
-        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
+        .with(Modify::new(Columns::one(0)).with(Alignment::right()))
+        .with(Modify::new(Columns::one(1)).with(Alignment::left()))
         .to_string();
 
     println!("{table}");
@@ -104,7 +110,7 @@ pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-pub fn search(keywords: &str, match_mode: MatchMode) -> Result<(), anyhow::Error> {
+pub fn search(keywords: &str, match_mode: MatchMode) -> Result<()> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
@@ -141,8 +147,8 @@ pub fn search(keywords: &str, match_mode: MatchMode) -> Result<(), anyhow::Error
     let table = builder
         .build()
         .with(Style::psql())
-        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-        .with(Modify::new(Columns::single(2)).with(Alignment::left()))
+        .with(Modify::new(Columns::one(1)).with(Alignment::left()))
+        .with(Modify::new(Columns::one(2)).with(Alignment::left()))
         .with(Merge::vertical())
         .to_string();
 
@@ -150,7 +156,7 @@ pub fn search(keywords: &str, match_mode: MatchMode) -> Result<(), anyhow::Error
     Ok(())
 }
 
-pub fn list_bundles(fields: Vec<String>, claimed_filter: &str) -> Result<(), anyhow::Error> {
+pub fn list_bundles(fields: Vec<String>, claimed_filter: &str) -> Result<()> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
     let key_only = fields.len() == 1 && fields[0] == "key";
@@ -202,8 +208,8 @@ pub fn list_bundles(fields: Vec<String>, claimed_filter: &str) -> Result<(), any
     let table = builder
         .build()
         .with(Style::psql())
-        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-        .with(Modify::new(Columns::single(2)).with(Alignment::right()))
+        .with(Modify::new(Columns::one(1)).with(Alignment::left()))
+        .with(Modify::new(Columns::one(2)).with(Alignment::right()))
         .to_string();
     println!("{table}");
 
@@ -230,7 +236,7 @@ fn find_key(all_keys: Vec<String>, key_to_find: &str) -> Option<String> {
     }
 }
 
-pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
+pub fn show_bundle_details(bundle_key: &str) -> Result<()> {
     let config = get_config()?;
     let api = crate::HumbleApi::new(&config.session_key);
 
@@ -270,10 +276,10 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
         let table = builder
             .build()
             .with(Style::psql())
-            .with(Modify::new(Columns::single(0)).with(Alignment::right()))
-            .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-            .with(Modify::new(Columns::single(2)).with(Alignment::left()))
-            .with(Modify::new(Columns::single(3)).with(Alignment::right()))
+            .with(Modify::new(Columns::one(0)).with(Alignment::right()))
+            .with(Modify::new(Columns::one(1)).with(Alignment::left()))
+            .with(Modify::new(Columns::one(2)).with(Alignment::left()))
+            .with(Modify::new(Columns::one(3)).with(Alignment::right()))
             .to_string();
 
         println!("{table}");
@@ -306,9 +312,9 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
         let table = builder
             .build()
             .with(Style::psql())
-            .with(Modify::new(Columns::single(0)).with(Alignment::right()))
-            .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-            .with(Modify::new(Columns::single(2)).with(Alignment::center()))
+            .with(Modify::new(Columns::one(0)).with(Alignment::right()))
+            .with(Modify::new(Columns::one(1)).with(Alignment::left()))
+            .with(Modify::new(Columns::one(2)).with(Alignment::center()))
             .to_string();
 
         println!("{table}");
@@ -328,11 +334,11 @@ pub fn download_bundles(
     max_size: u64,
     torrents_only: bool,
     cur_dir: bool,
-) -> Result<(), anyhow::Error> {
+) -> Result<()> {
     // ---------------------------------------------------------------------------------------------
     let buffer = fs::read_to_string(bundle_list_file)?;
 
-    let mut err_vec: Vec<(String, anyhow::Error)> = Vec::new();
+    let mut err_vec: Vec<(String, Error)> = Vec::new();
     let lines = buffer.lines();
     for line in lines {
         let parts: Vec<&str> = line.split(',').collect();
@@ -375,10 +381,10 @@ pub fn download_bundle(
     bundle_key: &str,
     formats: &[String],
     max_size: u64,
-    item_numbers: Option<&str>,
+    item_numbers: Option<&String>,
     torrents_only: bool,
     cur_dir: bool,
-) -> Result<(), anyhow::Error> {
+) -> Result<()> {
     let config = get_config()?;
 
     let api = crate::HumbleApi::new(&config.session_key);
@@ -457,8 +463,15 @@ pub fn download_bundle(
                     &dl_info.url.web
                 };
 
-                let filename = util::extract_filename_from_url(download_url)
-                    .context(format!("Cannot get file name from URL '{}'", download_url))?;
+                let filename = util::extract_filename_from_url(download_url);
+                let filename = if let Some(filename) = filename {
+                    filename
+                } else {
+                    return Err(Error::ExtractFilenameFromUrl(format!(
+                        "Cannot get file name from URL '{}'",
+                        download_url
+                    )));
+                };
                 let download_path = entry_dir.join(&filename);
 
                 let f = download::download_file(
@@ -475,7 +488,7 @@ pub fn download_bundle(
     Ok(())
 }
 
-fn create_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
+fn create_dir(dir: &str) -> Result<path::PathBuf> {
     let dir = path::Path::new(dir).to_owned();
     if !dir.exists() {
         fs::create_dir(&dir)?;
@@ -483,7 +496,7 @@ fn create_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
     Ok(dir)
 }
 
-fn open_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
+fn open_dir(dir: &str) -> Result<path::PathBuf> {
     let dir = path::Path::new(dir).to_owned();
     Ok(dir)
 }
@@ -498,9 +511,12 @@ fn validate_fields(fields: &[String]) -> bool {
     true
 }
 
-fn bulk_format(fields: &[String], bundles: &[Bundle]) -> Result<(), anyhow::Error> {
+fn bulk_format(fields: &[String], bundles: &[Bundle]) -> Result<()> {
     if !validate_fields(fields) {
-        return Err(anyhow!("invalid field in fields: {}", fields.join(",")));
+        return Err(Error::BulkFormat(format!(
+            "invalid field in fields: {}",
+            fields.join(",")
+        )));
     }
     let print_key = fields.contains(&VALID_FIELDS[0].to_lowercase());
     let print_name = fields.contains(&VALID_FIELDS[1].to_lowercase());

@@ -132,8 +132,12 @@ fn product_name_matches() {
     ];
 
     for td in test_data {
-        let mut product = Product::default();
-        product.human_name = td.name.clone();
+        let product = Product {
+            machine_name: core::default::Default::default(),
+            human_name: td.name.clone(),
+            product_details_url: core::default::Default::default(),
+            downloads: core::default::Default::default(),
+        };
 
         let keywords = td.keywords.to_lowercase();
         let keywords: Vec<&str> = keywords.split(" ").collect();
