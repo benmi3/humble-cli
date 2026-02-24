@@ -1,4 +1,4 @@
-name: sast.yaml
+name: test.yaml
 
 on:
   push:
