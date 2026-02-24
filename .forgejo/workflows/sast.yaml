@@ -28,7 +28,7 @@ jobs:
         run: apk add --no-cache musl-dev
 
       - name: Checkout repository
-        uses: https://data.forgejo.org/actions/checkout@v6
+        uses: https://data.forgejo.org/actions/checkout@v5
         with:
           fetch-depth: 0
 
