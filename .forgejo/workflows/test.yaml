@@ -1,0 +1,38 @@
+name: sast.yaml
+
+on:
+  push:
+    branches:
+      - main
+      - dev*
+      - feat/*
+      - feature/*
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-1:
+    runs-on: docker
+    container:
+      image: rust:1.93.1-alpine
+      credentials:
+        username: ${{ secrets.DOCKER_RUNNER_USERNAME }}
+        password: ${{ secrets.DOCKER_RUNNER_PASSWORD }}
+    steps:
+      - name: Setup Node for actions
+        run: apk add --update nodejs
+
+      - name: Add Alpine Build Dependencies
+        run: apk add --no-cache musl-dev
+
+      - name: Checkout repository
+        uses: https://data.forgejo.org/actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run a Cargo Test
+        run: |
+          echo "Rust (cargo test)"
+          cargo test
