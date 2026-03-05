@@ -16,7 +16,7 @@ jobs:
   sast-1:
     runs-on: docker
     container:
-      image: rust:1.93.1-alpine
+      image: rust:1.94.0-alpine
       credentials:
         username: ${{ secrets.DOCKER_RUNNER_USERNAME }}
         password: ${{ secrets.DOCKER_RUNNER_PASSWORD }}
